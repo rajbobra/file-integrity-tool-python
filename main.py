@@ -1,10 +1,11 @@
-import hashlib, time, os
+import hashlib, time, os, argparse
 
-BUF_SIZE = 65536 # 64KB
+BUF_SIZE = 65536  # 64KB
+
 
 def get_files(path):
     fileSet = set()
-    for (root, dirs, files) in os.walk(path):
+    for root, dirs, files in os.walk(path):
         for file in files:
             fileSet.add(os.path.join(root, file))
     return fileSet
@@ -12,7 +13,7 @@ def get_files(path):
 
 def hash_file(file_path):
     sha256 = hashlib.sha256()
-    with open(file_path, 'rb') as f:
+    with open(file_path, "rb") as f:
         while True:
             data = f.read(BUF_SIZE)
 
@@ -35,12 +36,12 @@ def detectChanges(files, file_hashes):
     for old_f in file_hashes:
         if old_f not in files:
             deleted.append(old_f)
-    
+
     for old_f in deleted:
         del file_hashes[old_f]
 
     for file in files:
-        latest_hash  = hash_file(file)
+        latest_hash = hash_file(file)
         if file in file_hashes:
             if file_hashes[file] != latest_hash:
                 changed.append(file)
@@ -52,29 +53,43 @@ def detectChanges(files, file_hashes):
     return (changed, added, deleted)
 
 
-
 def log(changes):
     if changes[0] == [] and changes[1] == [] and changes[2] == []:
-        print('No changes in files detected')
+        print(f"No changes in files detected in the last {args.interval} seconds")
     else:
-        if changes[0]:
-            print(f"ALERT: Following files have been changed in the last 30 seconds: {changes[0]}")
-        if changes[1]:
-            print(f"ALERT: Following files have been added in the last 30 seconds: {changes[1]}")
-        if changes[2]:
-            print(f"ALERT: Following files have been deleted in the last 30 seconds: {changes[2]}")
+        type = ["changed", "added", "deleted"]
+        for i in range(0, 3):
+            if changes[i]:
+                print(f"ALERT: Following files have been {type[i]} in the last {args.interval} seconds: {changes[i]}")
 
+
+def get_cli_args():
+    parser = argparse.ArgumentParser(
+        description="Arguments for File Integrity CLI tool"
+    )
+    parser.add_argument(
+        "interval",
+        type=int,
+        help="Pass in the interval you want to run this program at",
+    )
+    parser.add_argument(
+        "directory_path",
+        type=str,
+        help="Pass in the directory you want to scan for continuous integrity checks",
+    )
+    return parser.parse_args()
 
 
 def main():
-    directory = None # replace with directory you want to scan
-    path = os.path.expanduser(directory)
+    path = os.path.expanduser(args.directory_path)
     file_hashes = {}
     files = get_files(path)
     startUp(files, file_hashes)
     while True:
-        time.sleep(30)
+        time.sleep(args.interval)
         files = get_files(path)
         log(detectChanges(files, file_hashes))
 
+
+args = get_cli_args()
 main()
