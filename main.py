@@ -29,21 +29,41 @@ def startUp(files, file_hashes):
         file_hashes[file] = hash_file(file)
 
 
-
 def detectChanges(files, file_hashes):
-    changes = []
+    changed, added, deleted = ([] for i in range(3))
+
+    for old_f in file_hashes:
+        if old_f not in files:
+            deleted.append(old_f)
+    
+    for old_f in deleted:
+        del file_hashes[old_f]
+
     for file in files:
         latest_hash  = hash_file(file)
         if file in file_hashes:
             if file_hashes[file] != latest_hash:
-                changes.append(file)
+                changed.append(file)
                 file_hashes[file] = latest_hash
+        else:
+            added.append(file)
+            file_hashes[file] = latest_hash
+
+    return (changed, added, deleted)
 
 
-    if changes == []:
+
+def log(changes):
+    if changes[0] == [] and changes[1] == [] and changes[2] == []:
         print('No changes in files detected')
     else:
-        print(f"ALERT: Following files have been changed in the last 20 seconds: {changes}")
+        if changes[0]:
+            print(f"ALERT: Following files have been changed in the last 30 seconds: {changes[0]}")
+        if changes[1]:
+            print(f"ALERT: Following files have been added in the last 30 seconds: {changes[1]}")
+        if changes[2]:
+            print(f"ALERT: Following files have been deleted in the last 30 seconds: {changes[2]}")
+
 
 
 def main():
@@ -53,8 +73,8 @@ def main():
     files = get_files(path)
     startUp(files, file_hashes)
     while True:
-        time.sleep(20)
+        time.sleep(30)
         files = get_files(path)
-        detectChanges(files, file_hashes)
+        log(detectChanges(files, file_hashes))
 
 main()
